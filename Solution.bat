@@ -1,0 +1,1 @@
+"C:\Program Files\Acumatica ERP\AcumaticaDBTestV(20.214.0030)\App_Data\Projects\SupCost310822_Code\SupCost310822_Code.sln"
