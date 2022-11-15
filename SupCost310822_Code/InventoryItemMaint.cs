@@ -41,37 +41,47 @@ namespace PX.Objects.IN
         protected void InventoryItem_RowSelected(PXCache cache, PXRowSelectedEventArgs e)
         {
             Vendor v = null;
-            var vendorCurrency="";
-            
+            var vendorCurrency = "";
+
             decimal? discountPErcent = 0;
 
             var row = (InventoryItem)e.Row;
             if (row != null)
             {
+
+                foreach (PXResult<POVendorInventory, Vendor> item in Base.VendorItems.Select())
+                {
+                    var vendor = (Vendor)item;
+                    var inv = (POVendorInventory)item;
+                    if (inv != null && inv.IsDefault == true)
+                    {
+                        v = vendor;
+                        vendorCurrency = vendor.CuryID;
+                        location = inv.VendorLocationID;
+                        break;
+                    }
+
+                }
+                InventoryItemExt ext = row.GetExtension<InventoryItemExt>();
+
+                ///Set currency id
+                ext.UsrItemCurrency = myCurrency;
+                ext.UsrVenCurrency = vendorCurrency;
+
+
                 //APPriceWorksheetDetail aPPrice = PXSelect<APPriceWorksheetDetail, Where<APPriceWorksheetDetail.inventoryID, Equal<Current<InventoryItem.inventoryID>>>, OrderBy<Desc<APPriceWorksheetDetail.createdDateTime>>>.Select(this.Base).TopFirst;
                 POVendorInventory myVendor = this.Base.VendorItems.Search<POVendorInventory.isDefault>(true);
                 if (myVendor != null)
                 {
+
                     APPriceWorksheetDetail aPPrice = PXSelect<APPriceWorksheetDetail, Where<APPriceWorksheetDetail.inventoryID, Equal<Current<InventoryItem.inventoryID>>, And<APPriceWorksheetDetail.vendorID, Equal<Required<POVendorInventory.vendorID>>>>>.Select(this.Base, myVendor.VendorID);
                     if (aPPrice != null)
                     {
-                        InventoryItemExt ext = row.GetExtension<InventoryItemExt>();
                         if (ext != null && aPPrice.PendingPrice != null)
                         {
 
                             APDiscountSequenceMaint sequenceMaint = PXGraph.CreateInstance<APDiscountSequenceMaint>();
-                            foreach (PXResult<POVendorInventory, Vendor> item in Base.VendorItems.Select())
-                            {
-                                var vendor = (Vendor)item;
-                                var inv = (POVendorInventory)item;
-                                if (inv != null && inv.IsDefault == true)
-                                {
-                                    v = vendor;
-                                    vendorCurrency = vendor.CuryID;
-                                    location = inv.VendorLocationID;
-                                }
 
-                            }
 
                             if (v != null)
                             {
@@ -108,8 +118,9 @@ namespace PX.Objects.IN
 
                             ext.UsrSupplierCost = (decimal)aPPrice.PendingPrice;
                             ext.UsrSupDisc = discountPErcent;
-                            ext.UsrItemCurrency = myCurrency;
-                            ext.UsrVenCurrency = vendorCurrency;
+
+
+
 
                             cache.SetValueExt<InventoryItemExt.usrSupDisc>(row, discountPErcent);
                             //if (!string.IsNullOrEmpty( ext.UsrSupplierDisc.ToString())&& decimal.TryParse(ext.UsrSupplierDisc.ToString(), out discountPrice))
@@ -130,6 +141,9 @@ namespace PX.Objects.IN
                                 }
                                 //CSAnswers dutyPercentage = Base.Answers.Select("IMPORTPCT");
 
+
+                                if (vendorCurrency.Trim().ToLower() == "zar")
+                                    ext.UsrROE = ext.UsrFOB;
 
 
                                 if (ext.UsrDuty != null)
@@ -155,13 +169,13 @@ namespace PX.Objects.IN
                 //vendorMaint.BAccount.Current = vendorR;
                 //if (vendorMaint != null)
                 //{
-                    foreach (CSAnswers item in Base.Answers.Select())
+                foreach (CSAnswers item in Base.Answers.Select())
+                {
+                    if (item.AttributeID == "VENONCOST" && !String.IsNullOrEmpty(item.Value))
                     {
-                        if (item.AttributeID == "VENONCOST" && !String.IsNullOrEmpty(item.Value))
-                        {
-                            res = totalZAR / 100 * Convert.ToDecimal(item.Value);
-                        }
+                        res = totalZAR / 100 * Convert.ToDecimal(item.Value);
                     }
+                }
                 //}
             }
             return res;
@@ -216,7 +230,7 @@ namespace PX.Objects.IN
                     {
                         //if (!string.IsNullOrEmpty( ext.UsrSupplierDisc.ToString())&& decimal.TryParse(ext.UsrSupplierDisc.ToString(), out discountPrice))
                         //{
-                        if (ext.UsrSupDisc != null&& ext.UsrSupplierCost!=null)
+                        if (ext.UsrSupDisc != null && ext.UsrSupplierCost != null)
                         {
                             var cal = (decimal)ext.UsrSupplierCost / 100 * (decimal)ext.UsrSupDisc;
                             ext.UsrFOB = (decimal)aPPrice.PendingPrice - cal;
